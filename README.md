@@ -6,7 +6,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 [HuggingFace Dataset](https://huggingface.co/datasets/nvidia/SOL-ExecBench) | [Leaderboard](https://research.nvidia.com/benchmarks/sol-execbench)
-| [Arxiv (coming soon)]() </div>
+| [Technical Report](https://arxiv.org/abs/2603.19173) </div>
 
 **Speed-Of-Light ExecBench** is a rigorous GPU kernel evaluation and benchmarking framework built to benchmark AI-generated kernel solutions written with the variety of DSLs that NVIDIA hardware supports.
 
@@ -116,6 +116,20 @@ See the full schema docs:
 - [Workload](docs/workload.md) — Concrete input configurations and tolerance thresholds
 - [Solution](docs/solution.md) — Source files and build specs for a kernel implementation
 - [Trace](docs/trace.md) — Evaluation output (correctness and performance results)
+
+## Citation
+
+```bibtex
+@misc{lin2026solexecbench,
+      title={SOL-ExecBench: Speed-of-Light Benchmarking for Real-World GPU Kernels Against Hardware Limits}, 
+      author={Edward Lin, Sahil Modi, Siva Kumar Sastry Hari, Qijing Huang, Zhifan Ye, Nestor Qin, Fengzhe Zhou, Yuan Zhang, Jingquan Wang, Sana Damani, Dheeraj Peri, Ouye Xie, Aditya Kane, Moshe Maor, Michael Behar, Triston Cao, Rishabh Mehta, Vartika Singh, Vikram Sharma Mailthody, Terry Chen, Zihao Ye, Hanfeng Chen, Tianqi Chen, Vinod Grover, Wei Chen, Wei Liu, Eric Chung, Luis Ceze, Roger Bringmann, Cyril Zeller, Michael Lightstone, Christos Kozyrakis, Humphrey Shi},
+      year={2026},
+      eprint={2603.19173},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2603.19173}, 
+}
+```
 
 ## License
 
