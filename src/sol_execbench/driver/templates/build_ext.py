@@ -27,9 +27,8 @@ HERE = Path.cwd().resolve()
 solution = Solution(**json.loads((HERE / "solution.json").read_text()))
 compile_options = solution.spec.compile_options
 
-cuda_cflags = ["-O3", "--use_fast_math"] + (
-    compile_options.cuda_cflags if compile_options else []
-)
+# set flags
+cuda_cflags = compile_options.cuda_cflags if compile_options else []
 cflags = compile_options.cflags if compile_options else []
 ld_flags = compile_options.ld_flags if compile_options else []
 

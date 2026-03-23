@@ -180,16 +180,23 @@ class TestCompileOptions:
     def test_default_cuda_cflags(self, tmp_path):
         (tmp_path / "k.cu").write_text("")
         (tmp_path / "benchmark_kernel.so").write_bytes(b"fake")
-        mock = _exec_build_ext(tmp_path)
+        mock = _exec_build_ext(tmp_path, {})
         cuda_cflags = mock.load.call_args.kwargs["extra_cuda_cflags"]
         assert cuda_cflags == ["-O3", "--use_fast_math"]
 
-    def test_custom_cuda_cflags_appended(self, tmp_path):
+    def test_no_compile_options_gives_empty_flags(self, tmp_path):
+        (tmp_path / "k.cu").write_text("")
+        (tmp_path / "benchmark_kernel.so").write_bytes(b"fake")
+        mock = _exec_build_ext(tmp_path)
+        cuda_cflags = mock.load.call_args.kwargs["extra_cuda_cflags"]
+        assert cuda_cflags == []
+
+    def test_custom_cuda_cflags(self, tmp_path):
         (tmp_path / "k.cu").write_text("")
         (tmp_path / "benchmark_kernel.so").write_bytes(b"fake")
         mock = _exec_build_ext(tmp_path, {"cuda_cflags": ["-arch=sm_90a"]})
         cuda_cflags = mock.load.call_args.kwargs["extra_cuda_cflags"]
-        assert cuda_cflags == ["-O3", "--use_fast_math", "-arch=sm_90a"]
+        assert cuda_cflags == ["-arch=sm_90a"]
 
     def test_cflags_default_empty(self, tmp_path):
         (tmp_path / "k.cu").write_text("")

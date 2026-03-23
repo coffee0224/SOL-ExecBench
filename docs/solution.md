@@ -84,23 +84,22 @@ def run(A, B, eps, C, stats):  # inputs first, then outputs
 
 ## `compile_options` — Compiler Flags
 
-For C++ language solutions (e.g. `"cuda_cpp"`, `"cutlass"`), extra compiler flags merged onto the evaluator's defaults:
+For C++ language solutions (e.g. `"cuda_cpp"`, `"cutlass"`), extra compiler flags can be specified. An empty `"compile_options": {}` object uses the defaults:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `cflags` | array[string] | `[]` | Extra GCC/Clang C compiler flags |
+| `cuda_cflags` | array[string] | `["-O3", "--use_fast_math"]` | Extra NVCC flags |
+| `ld_flags` | array[string] | `["-lcuda"]` | Extra linker flags |
+
+If your solution links against additional libraries, add the corresponding `-l` flag to `ld_flags`. For example, a cuDNN solution needs `"-lcudnn"`, and a cuBLAS solution needs `"-lcublas"`:
 
 ```json
 "compile_options": {
-  "cflags":      ["-O3"],
-  "cuda_cflags": ["-O3", "--use_fast_math", "-std=c++17", "--expt-relaxed-constexpr"],
-  "ld_flags":    []
+  "cuda_cflags": ["-O3", "--use_fast_math", "-std=c++17"],
+  "ld_flags": ["-lcuda", "-lcudnn"]
 }
 ```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `cflags` | array[string] | Extra GCC/Clang C compiler flags |
-| `cuda_cflags` | array[string] | Extra NVCC flags |
-| `ld_flags` | array[string] | Extra linker flags |
-
-These are **additive** — do not replicate the evaluator's default flags.
 
 ---
 

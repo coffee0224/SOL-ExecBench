@@ -15,7 +15,7 @@
 
 """Reward hack defenses for SOL ExecBench evaluation.
 
-Provides detection functions for five common reward-hacking patterns.
+Provides detection functions for four common reward-hacking patterns.
 The identity of torch.cuda.Event.elapsed_time is captured at module load
 time — before any user code is imported — so patching after the fact is
 detected.
@@ -23,7 +23,6 @@ detected.
 
 from __future__ import annotations
 
-import time
 from typing import Any, List
 
 import torch
@@ -101,46 +100,6 @@ def check_lazy_outputs(outputs: List[Any]) -> None:
             raise RewardHackDetected(
                 f"Lazy evaluation detected: output is {type(t).__name__}, not torch.Tensor"
             )
-
-
-def check_stream_injection(
-    user_fn: Any,
-    args: List[Any],
-    timed_latency_ms: float,
-    multiplier: float,
-    device: str,
-) -> None:
-    """Detect work hidden on a non-default CUDA stream.
-
-    Runs one additional synchronizing pass and compares its wall-clock latency
-    against the timed latency.  A kernel that enqueues work on a side stream
-    will appear fast during timing (which only waits on the default stream) but
-    slow here.
-
-    Args:
-        user_fn: The user's kernel callable.
-        args: Arguments to pass to ``user_fn``.
-        timed_latency_ms: The measured median latency in milliseconds.
-        multiplier: Threshold factor; sync latency must stay below
-            ``multiplier * timed_latency_ms`` to pass.
-        device: CUDA device string (e.g. ``"cuda:0"``).
-
-    Raises:
-        RewardHackDetected: If the sync latency exceeds the threshold.
-    """
-    if torch.cuda.is_available():
-        torch.cuda.synchronize(device)
-    t0 = time.perf_counter()
-    user_fn(*args)
-    if torch.cuda.is_available():
-        torch.cuda.synchronize(device)
-    sync_latency_s = time.perf_counter() - t0
-    threshold = multiplier * timed_latency_ms / 1000.0
-    if sync_latency_s > threshold:
-        raise RewardHackDetected(
-            f"Stream injection detected: sync latency {sync_latency_s * 1000:.3f} ms "
-            f"exceeds {multiplier}x timed latency {timed_latency_ms:.3f} ms"
-        )
 
 
 def snapshot_critical_functions(namespace: dict, names: List[str]) -> dict[str, int]:

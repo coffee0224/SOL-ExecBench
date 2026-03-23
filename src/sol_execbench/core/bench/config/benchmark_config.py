@@ -30,7 +30,6 @@ class BenchmarkConfig:
     warmup_runs: int = field(default=10)
     iterations: int = field(default=50)
     lock_clocks: bool = field(default=False)
-    stream_injection_multiplier: float = field(default=50.0)
     seed: int = field(default=200)
 
     def __post_init__(self):
@@ -38,5 +37,3 @@ class BenchmarkConfig:
             raise ValueError("warmup_runs must be >= 0")
         if self.iterations <= 0:
             raise ValueError("iterations must be > 0")
-        if self.stream_injection_multiplier <= 0:
-            raise ValueError("stream_injection_multiplier must be > 0")

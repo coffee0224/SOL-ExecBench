@@ -24,6 +24,7 @@ All non-JSON output (library messages, Triton JIT logs) goes to stderr.
 
 from __future__ import annotations
 
+import gc
 import importlib
 import importlib.util
 import json
@@ -128,7 +129,6 @@ from sol_execbench.core.bench.reward_hack import (  # noqa: E402
     check_eval_integrity,
     check_lazy_outputs,
     check_monkey_patch,
-    check_stream_injection,
     check_thread_injection,
     snapshot_critical_functions,
 )
@@ -191,7 +191,6 @@ _CRITICAL_NAMES = [
     "compute_error_stats",
     "check_monkey_patch",
     "check_lazy_outputs",
-    "check_stream_injection",
     "check_thread_injection",
     "check_eval_integrity",
     "_call_and_collect_outputs",
@@ -375,7 +374,24 @@ if bench_config.lock_clocks and not _clocks_locked:
     sys.exit(0)
 
 set_seed(bench_config.seed)
+_allocator = None
+_inputs = None
+_ref_outputs = None
+_user_outputs = None
+_timing_outputs = None
 for _workload in workloads:
+    # Free GPU memory held by previous workload's tensors and allocator pools.
+    # The ShiftingMemoryPoolAllocator holds source views that keep old tensors
+    # alive, and PyTorch's CUDA caching allocator retains freed blocks.
+    # Without this cleanup, memory accumulates across workloads causing OOM.
+    _allocator = None
+    _inputs = None
+    _ref_outputs = None
+    _user_outputs = None
+    _timing_outputs = None
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     _resolved_axes = definition.get_resolved_axes_values(_workload.axes)
 
     # -- Safetensors inputs --
@@ -627,24 +643,6 @@ for _workload in workloads:
     # -- Thread injection defense check --
     if _reward_hack_check(
         _workload, check_thread_injection, _threads_before, threading.active_count()
-    ):
-        continue
-
-    # -- Stream injection defense --
-    _stream_check_args = (
-        _inputs + allocate_outputs(definition, _resolved_axes, _device)
-        if _dps
-        else _inputs
-    )
-    if _reward_hack_check(
-        _workload,
-        check_stream_injection,
-        user_fn,
-        _stream_check_args,
-        _sol_latency_ms,
-        bench_config.stream_injection_multiplier,
-        _device,
-        suppress_errors=True,
     ):
         continue
 

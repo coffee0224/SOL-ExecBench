@@ -168,10 +168,10 @@ class CompileOptions(BaseModelWithDocstrings):
 
     cflags: list[str] = Field(default_factory=list)
     """Extra flags passed to the C++ compiler (gcc/g++)."""
-    cuda_cflags: list[str] = Field(default_factory=list)
-    """Extra flags passed to the CUDA compiler (nvcc)."""
-    ld_flags: list[str] = Field(default_factory=list)
-    """Extra flags passed to the linker."""
+    cuda_cflags: list[str] = Field(default_factory=lambda: ["-O3", "--use_fast_math"])
+    """Extra flags passed to the CUDA compiler (nvcc). Defaults to -O3 and --use_fast_math."""
+    ld_flags: list[str] = Field(default_factory=lambda: ["-lcuda"])
+    """Extra flags passed to the linker. Defaults to -lcuda."""
 
 
 class BuildSpec(BaseModelWithDocstrings):

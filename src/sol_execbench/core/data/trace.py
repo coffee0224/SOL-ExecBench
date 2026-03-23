@@ -107,7 +107,7 @@ class EvaluationStatus(str, Enum):
     TIMEOUT = "TIMEOUT"
     """Evaluation did not complete within the configured timeout."""
     REWARD_HACK = "REWARD_HACK"
-    """Solution attempted to cheat the benchmark (monkey-patching, thread/stream injection, lazy outputs)."""
+    """Solution attempted to cheat the benchmark (monkey-patching, thread injection, lazy outputs)."""
 
 
 class Evaluation(BaseModelWithDocstrings):

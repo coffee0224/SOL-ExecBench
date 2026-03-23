@@ -23,10 +23,6 @@ Verifies that:
   - Reward-hack defenses (monkey-patch, thread injection, lazy outputs) fire and
     emit REWARD_HACK traces with descriptive log messages.
   - @torch.compile solutions do NOT trigger a thread injection false positive.
-
-Stream injection is intentionally omitted: the check relies on a meaningful
-timed_latency_ms produced by CUDA event timing.  CPU fallback timing is too
-noisy for the ratio threshold to be reliable.
 """
 
 from __future__ import annotations
@@ -135,16 +131,12 @@ def _run_eval_driver(
     (tmp_path / "solution.json").write_text(json.dumps(_SOLUTION_SPEC))
     (tmp_path / "kernel.py").write_text(kernel_code)
 
-    # Default config: disable clock-locking (no nvidia-smi) and set a huge
-    # stream_injection_multiplier to suppress the check on CPU.  CPU wall-clock
-    # timing is too noisy for the 50x threshold to be meaningful; stream
-    # injection is separately covered by GPU e2e tests.
+    # Default config: disable clock-locking (no nvidia-smi).
     cfg = (
         bench_config
         if bench_config is not None
         else {
             "lock_clocks": False,
-            "stream_injection_multiplier": 1_000_000.0,
         }
     )
     (tmp_path / "config.json").write_text(json.dumps(cfg))
@@ -375,9 +367,7 @@ def test_load_inline_blocked_at_import(tmp_path):
     (tmp_path / "workload.jsonl").write_text(json.dumps(_MINIMAL_WORKLOAD))
     (tmp_path / "solution.json").write_text(json.dumps(_SOLUTION_SPEC))
     (tmp_path / "kernel.py").write_text(kernel)
-    (tmp_path / "config.json").write_text(
-        json.dumps({"lock_clocks": False, "stream_injection_multiplier": 1_000_000.0})
-    )
+    (tmp_path / "config.json").write_text(json.dumps({"lock_clocks": False}))
 
     result = subprocess.run(
         [sys.executable, "eval_driver.py"],

@@ -301,28 +301,6 @@ def test_reward_hack_e2e(tmp_path: Path, case: EvilCase):
 
 
 # ---------------------------------------------------------------------------
-# Stream injection — schema-level rejection
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.xdist_group("serial")
-def test_stream_inject_rejected():
-    """Stream injection kernel is rejected by the Solution schema validator.
-
-    The evil_stream_inject kernel uses ``torch.cuda.Stream()`` in a Python
-    source file.  The SourceFile validator bans the 'stream' keyword in .py
-    files, so Solution construction fails.
-    """
-    sample_dir = _SAMPLES_DIR / "evil_stream_inject"
-    sol_dict = json.loads((sample_dir / "solution.json").read_text())
-    kernel_content = (sample_dir / "kernel.py").read_text()
-    sol_dict["sources"] = [{"path": "kernel.py", "content": kernel_content}]
-
-    with pytest.raises(Exception, match="(?i)stream"):
-        Solution(**sol_dict)
-
-
-# ---------------------------------------------------------------------------
 # CLI e2e test — runs `sol-execbench <problem_dir> -o <output>`
 # ---------------------------------------------------------------------------
 

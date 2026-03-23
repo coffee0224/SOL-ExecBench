@@ -16,8 +16,6 @@
 
 """Tests for sol_execbench.core.bench.reward_hack."""
 
-import time
-
 import pytest
 import torch
 
@@ -26,7 +24,6 @@ from sol_execbench.core.bench.reward_hack import (
     check_eval_integrity,
     check_lazy_outputs,
     check_monkey_patch,
-    check_stream_injection,
     check_thread_injection,
     snapshot_critical_functions,
 )
@@ -107,43 +104,6 @@ class TestCheckLazyOutputs:
         with pytest.raises(RewardHackDetected) as exc:
             check_lazy_outputs(["a string"])
         assert "str" in str(exc.value)
-
-
-# ── check_stream_injection ────────────────────────────────────────────────────
-
-
-class TestCheckStreamInjection:
-    def test_passes_when_within_threshold(self, monkeypatch):
-        """Fast fn with a large multiplier: sync latency always stays within threshold."""
-        monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
-        check_stream_injection(
-            lambda: None, [], timed_latency_ms=1000.0, multiplier=100.0, device="cuda:0"
-        )
-
-    def test_raises_when_exceeds_threshold(self, monkeypatch):
-        """Slow fn with a tight threshold triggers stream-injection detection."""
-        monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
-
-        def slow():
-            time.sleep(0.05)  # 50 ms
-
-        with pytest.raises(RewardHackDetected, match="Stream injection"):
-            # threshold = 2.0 * 1.0 ms / 1000 = 0.002 s; sleep is 50 ms → exceeds
-            check_stream_injection(
-                slow, [], timed_latency_ms=1.0, multiplier=2.0, device="cuda:0"
-            )
-
-    def test_fn_receives_args(self, monkeypatch):
-        monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
-        received = []
-
-        def fn(x, y):
-            received.append((x, y))
-
-        check_stream_injection(
-            fn, [1, 2], timed_latency_ms=1000.0, multiplier=100.0, device="cuda:0"
-        )
-        assert received == [(1, 2)]
 
 
 # ── snapshot_critical_functions / check_eval_integrity ───────────────────────
