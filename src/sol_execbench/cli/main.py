@@ -50,7 +50,15 @@ console = Console(stderr=True)
 
 
 def _load_definition(path: Path) -> Definition:
-    return Definition(**json.loads(path.read_text()))
+    def_dict = json.loads(path.read_text())
+    # Resolve reference code from a file if not provided inline.
+    if not def_dict.get("reference"):
+        ref_path = def_dict.get("reference_file")
+        if ref_path:
+            ref_file = path.parent / ref_path
+            if ref_file.exists():
+                def_dict["reference"] = ref_file.read_text()
+    return Definition(**def_dict)
 
 
 def _load_workloads(path: Path) -> list[Workload]:

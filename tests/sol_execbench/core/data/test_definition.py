@@ -16,8 +16,11 @@
 
 """Tests for sol_execbench.core.data.definition.Definition."""
 
+import json
+
 import pytest
 
+from sol_execbench.cli.main import _load_definition
 from sol_execbench.core.data.definition import Definition
 
 _REFERENCE = "def run(a): return a"
@@ -127,3 +130,89 @@ class TestDefinitionValidators:
             reference="def run(a): return a\ndef gen(axes, device): return {}",
         )
         assert d.custom_inputs_entrypoint == "gen"
+
+
+# ── CLI _load_definition reference_file resolve ────────────────────────────────
+
+
+class TestLoadDefinitionResolveReferenceFile:
+    """Test that _load_definition resolves reference_file to inline content."""
+
+    _BASE_DEF = dict(
+        name="vecadd",
+        op_type="binary",
+        axes={"N": {"type": "const", "value": 4}},
+        inputs={"a": {"shape": ["N"], "dtype": "float32"}},
+        outputs={"b": {"shape": ["N"], "dtype": "float32"}},
+    )
+
+    def test_inline_reference_used_as_is(self, tmp_path):
+        """When reference is provided inline, it is used directly."""
+        def_dict = {**self._BASE_DEF, "reference": "def run(a): return a"}
+        def_file = tmp_path / "definition.json"
+        def_file.write_text(json.dumps(def_dict))
+
+        d = _load_definition(def_file)
+        assert d.reference == "def run(a): return a"
+
+    def test_reference_file_resolved(self, tmp_path):
+        """When reference is empty/missing and reference_file is set, content is read from file."""
+        ref_content = "def run(a):\n    return a"
+        (tmp_path / "reference.py").write_text(ref_content)
+
+        def_dict = {**self._BASE_DEF, "reference_file": "reference.py"}
+        def_file = tmp_path / "definition.json"
+        def_file.write_text(json.dumps(def_dict))
+
+        d = _load_definition(def_file)
+        assert d.reference == ref_content
+
+    def test_reference_empty_string_falls_back_to_file(self, tmp_path):
+        """Empty reference string triggers reference_file resolve."""
+        ref_content = "def run(a): return a"
+        (tmp_path / "ref.py").write_text(ref_content)
+
+        def_dict = {**self._BASE_DEF, "reference": "", "reference_file": "ref.py"}
+        def_file = tmp_path / "definition.json"
+        def_file.write_text(json.dumps(def_dict))
+
+        d = _load_definition(def_file)
+        assert d.reference == ref_content
+
+    def test_reference_file_with_subdirectory(self, tmp_path):
+        """reference_file can point into a subdirectory."""
+        sub = tmp_path / "src"
+        sub.mkdir()
+        ref_content = "def run(a): return a"
+        (sub / "kernel.py").write_text(ref_content)
+
+        def_dict = {**self._BASE_DEF, "reference_file": "src/kernel.py"}
+        def_file = tmp_path / "definition.json"
+        def_file.write_text(json.dumps(def_dict))
+
+        d = _load_definition(def_file)
+        assert d.reference == ref_content
+
+    def test_reference_file_not_found_raises(self, tmp_path):
+        """If reference_file points to a non-existent file, Definition validation will fail."""
+        def_dict = {**self._BASE_DEF, "reference_file": "missing.py"}
+        def_file = tmp_path / "definition.json"
+        def_file.write_text(json.dumps(def_dict))
+
+        with pytest.raises(Exception):
+            _load_definition(def_file)
+
+    def test_inline_reference_takes_precedence(self, tmp_path):
+        """When both reference and reference_file exist, inline reference wins."""
+        (tmp_path / "ref.py").write_text("def run(a): return a * 2")
+
+        def_dict = {
+            **self._BASE_DEF,
+            "reference": "def run(a): return a",
+            "reference_file": "ref.py",
+        }
+        def_file = tmp_path / "definition.json"
+        def_file.write_text(json.dumps(def_dict))
+
+        d = _load_definition(def_file)
+        assert d.reference == "def run(a): return a"
