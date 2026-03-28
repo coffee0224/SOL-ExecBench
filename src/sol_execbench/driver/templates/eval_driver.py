@@ -132,7 +132,7 @@ from sol_execbench.core.bench.reward_hack import (  # noqa: E402
     check_thread_injection,
     snapshot_critical_functions,
 )
-from sol_execbench.core.bench.timing import clone_args, time_runnable  # noqa: E402
+from sol_execbench.core.bench.timing import time_runnable  # noqa: E402
 from sol_execbench.core.bench.utils import (  # noqa: E402
     make_eval,
 )
@@ -647,11 +647,18 @@ for _workload in workloads:
         continue
 
     # -- Reference latency (for speedup factor) —always return-value style --
-    # Inputs are cloned (not regenerated) since the reference cannot cheat.
+    # Use ShiftingMemoryPoolAllocator (same as user timing) so both sides
+    # experience identical VRAM pressure during benchmarking.  The reference
+    # cannot cheat, but the consistent allocator eliminates the systematic
+    # speedup bias caused by clone() allocating far more real GPU memory
+    # than the pool-based approach.
     try:
+        _ref_allocator = ShiftingMemoryPoolAllocator(
+            _inputs, [], _total_timing_iters
+        )
         _ref_latency_ms = time_runnable(
             ref_fn,
-            lambda: clone_args(_inputs),
+            _ref_allocator.get_unique_args,
             _device,
             warmup=bench_config.warmup_runs,
             rep=bench_config.iterations,
