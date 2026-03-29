@@ -213,6 +213,9 @@ class ProblemPackager:
         (self.output_dir / "profile_runner.py").write_text(
             (_TEMPLATES_DIR / "profile_runner.py").read_text()
         )
+        (self.output_dir / "solar_runner.py").write_text(
+            (_TEMPLATES_DIR / "solar_runner.py").read_text()
+        )
 
         return ["python", "eval_driver.py"]
 

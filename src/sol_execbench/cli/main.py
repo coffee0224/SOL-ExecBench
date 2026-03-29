@@ -245,6 +245,11 @@ def _print_traces_table(traces: list[Trace]) -> None:
     help="Directory for NCU profile output files",
 )
 @click.option(
+    "--solar",
+    is_flag=True,
+    help="Run SOLAR analytical performance analysis on reference kernels",
+)
+@click.option(
     "--keep-staging", is_flag=True, help="Keep the staging directory after evaluation"
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show subprocess output")
@@ -261,6 +266,7 @@ def cli(
     lock_clocks: bool,
     profile: bool,
     profile_dir: Path,
+    solar: bool,
     keep_staging: bool,
     verbose: bool,
 ):
@@ -303,6 +309,11 @@ def cli(
             raise click.ClickException("ncu not found on PATH. Install Nsight Compute.")
         config.profile = True
         config.profile_dir = str(profile_dir.resolve())
+
+    if solar:
+        config.solar = True
+        if not profile:
+            config.profile_dir = str(profile_dir.resolve())
 
     console.print(f"[bold]Problem:[/bold]  {definition.name}")
     console.print(f"[bold]Solution:[/bold] {solution.name}")
@@ -383,10 +394,10 @@ def cli(
     if verbose and proc.stderr:
         console.print(f"[dim]{proc.stderr}[/dim]")
 
-    # Always show profile-related messages from stderr
-    if proc.stderr and profile:
+    # Always show profile/solar-related messages from stderr
+    if proc.stderr and (profile or solar):
         for _line in proc.stderr.splitlines():
-            if _line.startswith("[profile]"):
+            if _line.startswith(("[profile]", "[solar]")):
                 console.print(f"[dim]{_line}[/dim]")
 
     if proc.returncode != 0 and not proc.stdout.strip():
@@ -420,6 +431,9 @@ def cli(
 
     if profile:
         console.print(f"\n[bold]Profile output:[/bold] {profile_dir.resolve()}")
+
+    if solar:
+        console.print(f"\n[bold]SOLAR output:[/bold] {profile_dir.resolve()}")
 
     # Exit code: 0 if all passed, 1 otherwise
     all_passed = all(

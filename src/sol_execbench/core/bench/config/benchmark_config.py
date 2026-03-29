@@ -33,6 +33,7 @@ class BenchmarkConfig:
     seed: int = field(default=200)
     profile: bool = field(default=False)
     profile_dir: str = field(default=".profile_logs")
+    solar: bool = field(default=False)
 
     def __post_init__(self):
         if self.warmup_runs < 0:

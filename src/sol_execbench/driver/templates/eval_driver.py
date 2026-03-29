@@ -367,6 +367,45 @@ def _profile_kernel(target: str, workload_uuid: str, profile_dir: str) -> Option
     return str(out_path)
 
 
+def _solar_analyze(workload_uuid: str, profile_dir: str) -> Optional[str]:
+    """Run SOLAR analytical performance analysis on the reference kernel.
+
+    Returns the output directory on success, None on failure (non-fatal).
+    """
+    cmd = [
+        sys.executable,
+        "solar_runner.py",
+        "--workload-uuid",
+        str(workload_uuid),
+        "--output-dir",
+        str(profile_dir),
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(STAGING_DIR),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"[solar] timed out for {workload_uuid}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"[solar] failed for {workload_uuid}: {e}", file=sys.stderr)
+        return None
+
+    if result.stderr:
+        for _line in result.stderr.splitlines():
+            if _line.startswith("[solar]"):
+                print(_line, file=sys.stderr)
+
+    out_dir = str(Path(profile_dir) / str(workload_uuid) / "solar")
+    if (Path(out_dir) / "analysis.yaml").exists():
+        return out_dir
+    return None
+
+
 # ── Pre-compute output metadata (used by normalize_outputs for DPS=false) ─────
 _output_names = list(definition.outputs.keys())
 _output_dtypes_torch = {
@@ -731,6 +770,13 @@ for _workload in workloads:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         _profile_kernel("ref", _workload.uuid, bench_config.profile_dir)
+
+    # -- SOLAR analysis on reference kernel --
+    if bench_config.solar:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        _solar_analyze(_workload.uuid, bench_config.profile_dir)
 
     # -- Reference latency (for speedup factor) —always return-value style --
     # Use ShiftingMemoryPoolAllocator (same as user timing) so both sides

@@ -22,6 +22,7 @@ dependencies = [
     "datasets>=4.8.2",
     "torch-c-dlpack-ext>=0.1.5",
     "apache-tvm-ffi>=0.1.9",
+    "solar",
 ]
 
 [project.scripts]
@@ -69,4 +70,5 @@ torch = [
 torchvision = [
   { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
+solar = { git = "https://github.com/NVlabs/SOLAR.git" }
 
