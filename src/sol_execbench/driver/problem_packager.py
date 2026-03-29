@@ -216,6 +216,13 @@ class ProblemPackager:
         (self.output_dir / "solar_runner.py").write_text(
             (_TEMPLATES_DIR / "solar_runner.py").read_text()
         )
+        # Copy bundled SOLAR arch configs
+        bundled_configs = _TEMPLATES_DIR / "configs" / "arch"
+        if bundled_configs.exists():
+            staging_configs = self.output_dir / "configs" / "arch"
+            staging_configs.mkdir(parents=True, exist_ok=True)
+            for cfg_file in bundled_configs.glob("*.yaml"):
+                (staging_configs / cfg_file.name).write_text(cfg_file.read_text())
 
         return ["python", "eval_driver.py"]
 

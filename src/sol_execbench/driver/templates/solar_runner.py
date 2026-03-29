@@ -37,38 +37,12 @@ sys.path.insert(0, str(STAGING_DIR))
 
 from sol_execbench.core import Definition, Workload  # noqa: E402
 
-# ── Embedded SOLAR architecture configs ──────────────────────────────────────
+# ── Bundled SOLAR architecture configs ───────────────────────────────────────
 # SOLAR's pip-installed wheel may not ship configs/arch/ YAML files.
-# We embed them here and write to disk before calling predict().
+# We bundle them alongside this script in configs/arch/ and write to disk
+# before calling predict().
 
-_ARCH_CONFIGS = {
-    "H100_PCIe": (
-        "name: H100_PCIe\n"
-        "SRAM_capacity: 83886080  # 80 MB\n"
-        "DRAM_byte_per_cycle: 192  # 1.92 TB/s @ 1 GHz\n"
-        "freq_GHz: 1.8\n"
-        "MAC_per_cycle_fp32_tc: 0  # H100 does not have FP32 Tensor Cores\n"
-        "MAC_per_cycle_tf32_tc: 2000  # 2 PFLOPS @ 1.8 GHz\n"
-        "MAC_per_cycle_fp16_tc: 4000  # 4 PFLOPS @ 1.8 GHz\n"
-        "MAC_per_cycle_bf16_tc: 4000  # 4 PFLOPS @ 1.8 GHz\n"
-        "MAC_per_cycle_fp8_tc: 8000  # 8 PFLOPS @ 1.8 GHz\n"
-        "MAC_per_cycle_nvfp4_tc: 16000  # 16 PFLOPS @ 1.8 GHz\n"
-        "MAC_per_cycle_fp32_sm: 100  # 100 TFLOPS @ 1.8 GHz\n"
-    ),
-    "B200": (
-        "name: B200\n"
-        "SRAM_capacity: 268435456  # 256 MB\n"
-        "DRAM_byte_per_cycle: 384  # 3.84 TB/s @ 1 GHz\n"
-        "freq_GHz: 2.0\n"
-        "MAC_per_cycle_fp32_tc: 0  # B200 does not have FP32 Tensor Cores\n"
-        "MAC_per_cycle_tf32_tc: 4000  # 8 PFLOPS @ 2.0 GHz\n"
-        "MAC_per_cycle_fp16_tc: 8000  # 16 PFLOPS @ 2.0 GHz\n"
-        "MAC_per_cycle_bf16_tc: 8000  # 16 PFLOPS @ 2.0 GHz\n"
-        "MAC_per_cycle_fp8_tc: 16000  # 32 PFLOPS @ 2.0 GHz\n"
-        "MAC_per_cycle_nvfp4_tc: 32000  # 64 PFLOPS @ 2.0 GHz\n"
-        "MAC_per_cycle_fp32_sm: 200  # 400 TFLOPS @ 2.0 GHz\n"
-    ),
-}
+_ARCH_CONFIGS_DIR = Path(__file__).parent / "configs" / "arch"
 
 
 def _detect_solar_arch() -> str:
@@ -89,7 +63,7 @@ def _ensure_arch_config(arch_name: str, output_dir: Path) -> str:
     """Ensure the SOLAR arch config YAML file exists and return its path.
 
     SOLAR's pip wheel may not ship configs/arch/*.yaml.  If the config is not
-    found by SOLAR's built-in lookup, we write the embedded config to the
+    found by SOLAR's built-in lookup, we copy the bundled config to the
     output directory and return that path.
     """
     # Check if SOLAR can find it natively
@@ -103,11 +77,14 @@ def _ensure_arch_config(arch_name: str, output_dir: Path) -> str:
     except Exception:
         pass
 
-    # Write embedded config to output_dir
-    if arch_name not in _ARCH_CONFIGS:
-        arch_name = "B200"  # fallback
+    # Copy bundled config to output_dir
+    bundled = _ARCH_CONFIGS_DIR / f"{arch_name}.yaml"
+    if not bundled.exists():
+        # Fallback to B200
+        arch_name = "B200"
+        bundled = _ARCH_CONFIGS_DIR / f"{arch_name}.yaml"
     config_path = output_dir / f"{arch_name}.yaml"
-    config_path.write_text(_ARCH_CONFIGS[arch_name])
+    config_path.write_text(bundled.read_text())
     return str(config_path)
 
 
@@ -177,6 +154,11 @@ def main() -> None:
         required=True,
         help="Base directory for SOLAR output files",
     )
+    parser.add_argument(
+        "--arch-config",
+        default="",
+        help="Path to SOLAR arch config YAML. Auto-detects GPU arch if omitted",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir) / str(args.workload_uuid) / "solar"
@@ -213,8 +195,12 @@ def main() -> None:
         model_path = _generate_model_py(definition, target_workload, output_dir)
 
         # -- Detect architecture and ensure config is available --
-        arch = _detect_solar_arch()
-        arch_config = _ensure_arch_config(arch, output_dir)
+        if args.arch_config:
+            # User-supplied arch config path — use directly
+            arch_config = args.arch_config
+        else:
+            arch = _detect_solar_arch()
+            arch_config = _ensure_arch_config(arch, output_dir)
 
         # -- Run SOLAR 4-stage pipeline --
         from solar.graph import PyTorchProcessor  # noqa: E402

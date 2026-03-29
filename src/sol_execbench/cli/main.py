@@ -250,6 +250,12 @@ def _print_traces_table(traces: list[Trace]) -> None:
     help="Run SOLAR analytical performance analysis on reference kernels",
 )
 @click.option(
+    "--arch-config",
+    "arch_config_file",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to SOLAR arch config YAML (e.g. H100_PCIe.yaml). Auto-detects if omitted",
+)
+@click.option(
     "--keep-staging", is_flag=True, help="Keep the staging directory after evaluation"
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show subprocess output")
@@ -267,6 +273,7 @@ def cli(
     profile: bool,
     profile_dir: Path,
     solar: bool,
+    arch_config_file: Optional[Path],
     keep_staging: bool,
     verbose: bool,
 ):
@@ -314,6 +321,8 @@ def cli(
         config.solar = True
         if not profile:
             config.profile_dir = str(profile_dir.resolve())
+        if arch_config_file:
+            config.solar_arch_config = str(arch_config_file.resolve())
 
     console.print(f"[bold]Problem:[/bold]  {definition.name}")
     console.print(f"[bold]Solution:[/bold] {solution.name}")

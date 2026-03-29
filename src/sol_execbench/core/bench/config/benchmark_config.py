@@ -34,6 +34,7 @@ class BenchmarkConfig:
     profile: bool = field(default=False)
     profile_dir: str = field(default=".profile_logs")
     solar: bool = field(default=False)
+    solar_arch_config: str = field(default="")
 
     def __post_init__(self):
         if self.warmup_runs < 0:

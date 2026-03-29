@@ -1,0 +1,26 @@
+name: "RTX5060Ti_16GB"
+# NVIDIA GeForce RTX 5060 Ti 16GB - Blackwell Architecture
+# Source: NVIDIA, WareDB, GPU Poet
+
+# Memory
+SRAM_capacity: 33554432    # 32MB L2 Cache (estimated for GB206)
+SRAM_byte_per_cycle: 187   # ~448 GB/s internal (estimated)
+DRAM_capacity: 17179869184 # 16GB
+DRAM_byte_per_cycle: 187   # 448 GB/s / 2.4 GHz
+
+# Clock
+freq_GHz: 2.4              # 2407 MHz base clock
+
+# Compute throughput (per cycle)
+# FP32: 23.7 TFLOPS / 2.4 GHz ≈ 9875
+MAC_per_cycle_fp32_sm: 9875
+
+# Tensor Core throughput (per cycle) - 5th Gen Tensor Cores
+# FP16/BF16: 47.41 TFLOPS / 2.4 GHz ≈ 19754
+# FP8: 94.81 TFLOPS / 2.4 GHz ≈ 39504
+# INT8: 379 TOPS / 2.4 GHz ≈ 157917
+MAC_per_cycle_int8_tc: 157917   # 379 TOPS
+MAC_per_cycle_fp8_tc: 39504     # 94.81 TFLOPS
+MAC_per_cycle_fp16_tc: 19754    # 47.41 TFLOPS
+MAC_per_cycle_bf16_tc: 19754    # 47.41 TFLOPS
+MAC_per_cycle_tf32_tc: 9875     # 23.7 TFLOPS (TF32 = FP32 Tensor)

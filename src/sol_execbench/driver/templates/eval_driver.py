@@ -367,7 +367,9 @@ def _profile_kernel(target: str, workload_uuid: str, profile_dir: str) -> Option
     return str(out_path)
 
 
-def _solar_analyze(workload_uuid: str, profile_dir: str) -> Optional[str]:
+def _solar_analyze(
+    workload_uuid: str, profile_dir: str, arch_config: str = ""
+) -> Optional[str]:
     """Run SOLAR analytical performance analysis on the reference kernel.
 
     Returns the output directory on success, None on failure (non-fatal).
@@ -380,6 +382,8 @@ def _solar_analyze(workload_uuid: str, profile_dir: str) -> Optional[str]:
         "--output-dir",
         str(profile_dir),
     ]
+    if arch_config:
+        cmd.extend(["--arch-config", arch_config])
     try:
         result = subprocess.run(
             cmd,
@@ -776,7 +780,9 @@ for _workload in workloads:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        _solar_analyze(_workload.uuid, bench_config.profile_dir)
+        _solar_analyze(
+            _workload.uuid, bench_config.profile_dir, bench_config.solar_arch_config
+        )
 
     # -- Reference latency (for speedup factor) —always return-value style --
     # Use ShiftingMemoryPoolAllocator (same as user timing) so both sides
