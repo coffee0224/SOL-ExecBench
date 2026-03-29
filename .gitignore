@@ -30,6 +30,7 @@ hooks
 objects
 refs
 pytest*
+.profile_logs
 
 # datasets
 /data/*

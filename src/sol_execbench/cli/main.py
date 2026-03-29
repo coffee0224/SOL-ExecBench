@@ -25,6 +25,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -232,6 +233,18 @@ def _print_traces_table(traces: list[Trace]) -> None:
 @click.option("--json", "json_output", is_flag=True, help="Print trace JSON to stdout")
 @click.option("--lock-clocks", is_flag=True, help="Require GPU clocks to be locked")
 @click.option(
+    "--profile",
+    is_flag=True,
+    help="Profile kernels with Nsight Compute (ncu must be on PATH)",
+)
+@click.option(
+    "--profile-dir",
+    "profile_dir",
+    type=click.Path(path_type=Path),
+    default=".profile_logs",
+    help="Directory for NCU profile output files",
+)
+@click.option(
     "--keep-staging", is_flag=True, help="Keep the staging directory after evaluation"
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show subprocess output")
@@ -246,6 +259,8 @@ def cli(
     output_file: Optional[Path],
     json_output: bool,
     lock_clocks: bool,
+    profile: bool,
+    profile_dir: Path,
     keep_staging: bool,
     verbose: bool,
 ):
@@ -282,6 +297,12 @@ def cli(
 
     if lock_clocks:
         config.lock_clocks = True
+
+    if profile:
+        if not shutil.which("ncu"):
+            raise click.ClickException("ncu not found on PATH. Install Nsight Compute.")
+        config.profile = True
+        config.profile_dir = str(profile_dir.resolve())
 
     console.print(f"[bold]Problem:[/bold]  {definition.name}")
     console.print(f"[bold]Solution:[/bold] {solution.name}")
@@ -362,6 +383,12 @@ def cli(
     if verbose and proc.stderr:
         console.print(f"[dim]{proc.stderr}[/dim]")
 
+    # Always show profile-related messages from stderr
+    if proc.stderr and profile:
+        for _line in proc.stderr.splitlines():
+            if _line.startswith("[profile]"):
+                console.print(f"[dim]{_line}[/dim]")
+
     if proc.returncode != 0 and not proc.stdout.strip():
         console.print("[red]Evaluation failed[/red]")
         if proc.stderr:
@@ -390,6 +417,9 @@ def cli(
             print(json.dumps(t.model_dump(mode="json")))
     else:
         _print_traces_table(traces)
+
+    if profile:
+        console.print(f"\n[bold]Profile output:[/bold] {profile_dir.resolve()}")
 
     # Exit code: 0 if all passed, 1 otherwise
     all_passed = all(

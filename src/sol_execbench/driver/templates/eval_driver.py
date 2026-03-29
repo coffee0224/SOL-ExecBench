@@ -29,6 +29,8 @@ import importlib
 import importlib.util
 import json
 import os
+import shutil
+import subprocess
 import sys
 import threading
 import traceback
@@ -293,6 +295,76 @@ def _reward_hack_check(workload, check_fn, *args, suppress_errors=False):
         if not suppress_errors:
             raise
     return False
+
+
+def _profile_kernel(target: str, workload_uuid: str, profile_dir: str) -> Optional[str]:
+    """Profile a single kernel invocation under NCU.
+
+    Returns the output path on success, None on failure (non-fatal).
+    """
+    ncu_path = shutil.which("ncu")
+    if ncu_path is None:
+        print("[profile] ncu not found on PATH", file=sys.stderr)
+        return None
+
+    out_dir = Path(profile_dir) / str(workload_uuid)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if target == "ref":
+        filename = f"ref_{workload_uuid}"
+    else:
+        filename = f"{_solution_name}_{workload_uuid}"
+
+    out_path = out_dir / (filename + ".ncu-rep")
+
+    cmd = [
+        ncu_path,
+        "-o",
+        str(out_path),
+        sys.executable,
+        "profile_runner.py",
+        "--target",
+        target,
+        "--workload-uuid",
+        str(workload_uuid),
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(STAGING_DIR),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"[profile] ncu timed out for {target} {workload_uuid}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(
+            f"[profile] ncu failed for {target} {workload_uuid}: {e}", file=sys.stderr
+        )
+        return None
+
+    if result.returncode != 0:
+        print(
+            f"[profile] ncu exited with code {result.returncode} for {target} {workload_uuid}",
+            file=sys.stderr,
+        )
+        if result.stderr:
+            print(result.stderr.rstrip(), file=sys.stderr)
+        if result.stdout:
+            print(result.stdout.rstrip(), file=sys.stderr)
+        return None
+
+    if not out_path.exists():
+        print(
+            f"[profile] ncu succeeded but output file not found: {out_path}",
+            file=sys.stderr,
+        )
+        return None
+
+    print(f"[profile] saved {target} profile: {out_path}", file=sys.stderr)
+    return str(out_path)
 
 
 # ── Pre-compute output metadata (used by normalize_outputs for DPS=false) ─────
@@ -616,6 +688,13 @@ for _workload in workloads:
         )
         continue
 
+    # -- Profile user kernel under NCU (after warmup correctness checks) --
+    if bench_config.profile:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        _profile_kernel("user", _workload.uuid, bench_config.profile_dir)
+
     try:
         _sol_latency_ms = time_runnable(
             user_fn,
@@ -646,6 +725,13 @@ for _workload in workloads:
     ):
         continue
 
+    # -- Profile reference kernel under NCU --
+    if bench_config.profile:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        _profile_kernel("ref", _workload.uuid, bench_config.profile_dir)
+
     # -- Reference latency (for speedup factor) —always return-value style --
     # Use ShiftingMemoryPoolAllocator (same as user timing) so both sides
     # experience identical VRAM pressure during benchmarking.  The reference
@@ -653,9 +739,7 @@ for _workload in workloads:
     # speedup bias caused by clone() allocating far more real GPU memory
     # than the pool-based approach.
     try:
-        _ref_allocator = ShiftingMemoryPoolAllocator(
-            _inputs, [], _total_timing_iters
-        )
+        _ref_allocator = ShiftingMemoryPoolAllocator(_inputs, [], _total_timing_iters)
         _ref_latency_ms = time_runnable(
             ref_fn,
             _ref_allocator.get_unique_args,

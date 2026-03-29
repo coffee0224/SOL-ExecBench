@@ -31,6 +31,8 @@ class BenchmarkConfig:
     iterations: int = field(default=50)
     lock_clocks: bool = field(default=False)
     seed: int = field(default=200)
+    profile: bool = field(default=False)
+    profile_dir: str = field(default=".profile_logs")
 
     def __post_init__(self):
         if self.warmup_runs < 0:
