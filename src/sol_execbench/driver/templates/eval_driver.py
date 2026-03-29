@@ -321,6 +321,8 @@ def _profile_kernel(target: str, workload_uuid: str, profile_dir: str) -> Option
         ncu_path,
         "-o",
         str(out_path),
+        "--set",
+        "full",
         sys.executable,
         "profile_runner.py",
         "--target",
